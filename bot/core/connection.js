@@ -30,12 +30,38 @@ async function connectToWhatsApp() {
 
   client.ev.on('creds.update', saveCreds);
 
+  let pairingRequested = false;
+
   client.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    if (qr) {
-      logger.info('connection', 'QR code received');
-      qrcode.generate(qr, { small: true });
+    // QR terminal generation disabled to avoid console clutter
+    // if (qr) {
+    //   qrcode.generate(qr, { small: true });
+    // }
+
+    if (qr && !state.creds.registered && !pairingRequested) {
+      pairingRequested = true;
+      if (config.ownerNumbers && config.ownerNumbers[0]) {
+        const ownerNumber = config.ownerNumbers[0].replace(/[^0-9]/g, '');
+        if (ownerNumber) {
+          try {
+            logger.info('connection', `Requesting pairing code for owner number: ${ownerNumber}...`);
+            const code = await client.requestPairingCode(ownerNumber);
+            logger.info('connection', `PAIRING CODE: ${code}`);
+
+            console.log('\n==================================================');
+            console.log(`  YOUR WHATSAPP PAIRING CODE: ${code}`);
+            console.log('==================================================\n');
+          } catch (err) {
+            logger.error('connection', 'Failed to request pairing code', { error: err.message });
+          }
+        } else {
+          logger.warn('connection', 'Owner number format invalid for pairing code');
+        }
+      } else {
+        logger.warn('connection', 'No owner number provided for pairing code');
+      }
     }
 
     if (connection === 'open') {
@@ -73,34 +99,6 @@ async function connectToWhatsApp() {
       }
     }
   });
-
-  // Handle Pairing Code when not registered
-  if (!state.creds.registered) {
-    if (config.ownerNumbers && config.ownerNumbers.length > 0) {
-      const rawNumber = config.ownerNumbers[0];
-      const cleanNumber = rawNumber.replace(/[^0-9]/g, '');
-
-      if (cleanNumber) {
-        logger.info('connection', `Requesting pairing code for owner number: ${cleanNumber}...`);
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-
-        try {
-          const code = await client.requestPairingCode(cleanNumber);
-          logger.info('connection', `PAIRING CODE: ${code}`);
-
-          console.log('\n==================================================');
-          console.log(`  YOUR WHATSAPP PAIRING CODE: ${code}`);
-          console.log('==================================================\n');
-        } catch (err) {
-          logger.error('connection', 'Failed to request pairing code', { error: err.message });
-        }
-      } else {
-        logger.warn('connection', 'Owner number format invalid for pairing code');
-      }
-    } else {
-      logger.warn('connection', 'No owner number provided for pairing code');
-    }
-  }
 
   return client;
 }
