@@ -14,7 +14,7 @@
     "@hapi/boom": "^10.0.1",
     "@whiskeysockets/baileys": "6.7.22",
     "dotenv": "16.4.5",
-    "mongodb": "^6.3.0",
+    "mongodb": "6.3.0",
     "pino": "9.5.0",
     "qrcode-terminal": "^0.12.0"
   },
