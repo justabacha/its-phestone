@@ -11,11 +11,7 @@ async function useMongoDBAuthState(config) {
   }
 
   if (!mongoClient) {
-    mongoClient = new MongoClient(uri, {
-      tls: true,
-      serverSelectionTimeoutMS: 5000,
-      autoSelectFamily: false
-    });
+    mongoClient = new MongoClient(uri);
     await mongoClient.connect();
     logger.info('auth-state', 'Connected to MongoDB for session auth state');
   }
