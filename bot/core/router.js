@@ -4,6 +4,12 @@ const registry = require('./registry');
 
 async function handleMessages(sock, messages) {
   for (const m of messages) {
+    // Ignore messages older than 60 seconds to prevent retry loops
+    const msgTimestamp = m.messageTimestamp;
+    if (msgTimestamp && Date.now() - (msgTimestamp * 1000) > 60000) {
+      continue;
+    }
+
     if (!m.message) continue;
     if (m.key.remoteJid === 'status@broadcast') continue;
 
