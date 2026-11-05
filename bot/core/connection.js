@@ -19,7 +19,8 @@ async function connectToWhatsApp() {
     auth: state,
     version,
     logger: pino({ level: 'silent' }),
-    browser: Browsers.macOS('Desktop'),
+    browser: Browsers.macOS('Chrome'),
+    mobile: false,
     syncFullHistory: false,
     shouldSyncHistoryMessage: () => false,
     getMessage: async (key) => {
@@ -47,6 +48,7 @@ async function connectToWhatsApp() {
         if (ownerNumber) {
           try {
             logger.info('connection', `Requesting pairing code for owner number: ${ownerNumber}...`);
+            await new Promise((resolve) => setTimeout(resolve, 2000));
             const code = await client.requestPairingCode(ownerNumber);
             logger.info('connection', `PAIRING CODE: ${code}`);
 
