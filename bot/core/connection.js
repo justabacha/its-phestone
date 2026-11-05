@@ -6,6 +6,7 @@ const pino = require('pino');
 const config = require('../config');
 const logger = require('../lib/logger');
 const { useMongoDBAuthState } = require('./auth-state');
+const { handleMessages } = require('./router');
 
 let reconnectAttempt = 0;
 
@@ -26,6 +27,12 @@ async function connectToWhatsApp() {
     getMessage: async (key) => {
       // Hooked to messageStore in future slice (5C)
       return undefined;
+    }
+  });
+
+  client.ev.on('messages.upsert', async (m) => {
+    if (m.type === 'notify') {
+      await handleMessages(client, m.messages);
     }
   });
 
