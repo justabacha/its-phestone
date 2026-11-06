@@ -1,3 +1,11 @@
+process.on('uncaughtException', (err) => {
+  console.error('💥 UNCAUGHT EXCEPTION:', err.message);
+  // Keep the process alive for transient runtime errors.
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('💥 UNHANDLED REJECTION:', reason);
+});
+
 const http = require('http');
 const { validateConfig } = require('./config');
 const path = require('path');

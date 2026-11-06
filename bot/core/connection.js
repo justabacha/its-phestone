@@ -42,12 +42,24 @@ async function connectToWhatsApp() {
 
   activeClient = client;
 
-  let badMacWarned = false;
+  const loggedTransientSocketErrors = new Set();
   client.ws.on('CB:error', (node) => {
     const error = node?.content?.[0]?.error;
-    if (error && String(error).includes('Bad MAC') && !badMacWarned) {
-      badMacWarned = true;
-      logger.warn('connection', 'Ignored Bad MAC error from corrupted message');
+    if (!error) return;
+
+    const errMsg = error.toString();
+    const isTransient = errMsg.includes('Bad MAC') ||
+      errMsg.includes('428') ||
+      errMsg.includes('Precondition');
+
+    if (isTransient) {
+      const errorType = errMsg.includes('Bad MAC')
+        ? 'Bad MAC'
+        : errMsg.includes('428') ? '428' : 'Precondition';
+      if (loggedTransientSocketErrors.has(errorType)) return;
+
+      loggedTransientSocketErrors.add(errorType);
+      logger.warn('connection', 'Ignored transient socket error: ' + errMsg);
     }
   });
 
