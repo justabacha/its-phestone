@@ -10,7 +10,7 @@ const port = process.env.PORT || 3000;
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('its-phestone is alive\n');
-}).listen(port, () => {
+}).listen(port, '0.0.0.0', () => {
   console.log(`[Health Check] Dummy HTTP server listening on port ${port}`);
 });
 
