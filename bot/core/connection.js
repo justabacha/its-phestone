@@ -47,7 +47,7 @@ async function releaseLeaseSafely(collection) {
   try {
     await releaseLease(collection);
   } catch (err) {
-    logger.error('connection', 'Failed to release MongoDB session lease', { error: err.message });
+    logger.error('connection', 'Failed to release MongoDB session lease!!', { error: err.message });
   }
 }
 
