@@ -14,8 +14,9 @@ let reconnectAttempt = 0;
 let activeClient = null;
 
 async function connectToWhatsApp() {
-  logger.info('connection', 'Waiting 5s for old container to die...');
-  await new Promise(resolve => setTimeout(resolve, 5000));
+  const jitter = Math.floor(Math.random() * 10000) + 5000;
+  logger.info('connection', `Waiting ${jitter}ms for old container to die...`);
+  await new Promise(resolve => setTimeout(resolve, jitter));
 
   const { state, saveCreds } = await useMongoDBAuthState(config);
   const { version, isLatest } = await fetchLatestBaileysVersion();
