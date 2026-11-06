@@ -32,7 +32,8 @@ async function handleMessages(sock, messages) {
 
     // Owner check
     const sender = m.key.participant || m.key.remoteJid;
-    const isOwner = m.key.fromMe || config.ownerNumbers.some(num => sender.includes(num));
+    const senderNumber = sender.split('@')[0];
+    const isOwner = m.key.fromMe || config.ownerNumbers.includes(senderNumber);
     if (!isOwner) continue;
 
     // Extract command text

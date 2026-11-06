@@ -1,3 +1,37 @@
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+const { inspect } = require('util');
+
+const ignorePatterns = ['SessionEntry', 'closed session', '_chains', 'registrationId'];
+
+function isIgnored(args) {
+  const str = args.map((arg) => {
+    if (arg instanceof Error) {
+      return `${arg.name}: ${arg.message} ${arg.stack || ''}`;
+    }
+
+    if (typeof arg === 'object' && arg !== null) {
+      try {
+        return JSON.stringify(arg);
+      } catch {
+        return inspect(arg);
+      }
+    }
+
+    return String(arg);
+  }).join(' ');
+
+  return ignorePatterns.some(pattern => str.includes(pattern));
+}
+
+console.log = (...args) => {
+  if (!isIgnored(args)) originalConsoleLog(...args);
+};
+
+console.error = (...args) => {
+  if (!isIgnored(args)) originalConsoleError(...args);
+};
+
 process.on('uncaughtException', (err) => {
   console.error('💥 UNCAUGHT EXCEPTION:', err.message);
   // Keep the process alive for transient runtime errors.
