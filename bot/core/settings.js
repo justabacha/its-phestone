@@ -1,7 +1,6 @@
-const fs = require('fs');
-const path = require('path');
+const config = require('../config');
 const logger = require('../lib/logger');
-// Deferred to future slice: config.mongodbUri for Mongo persistence hook (see docs/03 §6)
+const { getMongoClient, useMongoDBAuthState } = require('./auth-state');
 
 class SettingsError extends Error {
   constructor(message) {
@@ -18,10 +17,9 @@ const SCHEMA = {
   reactEmojis: { type: 'array',   of: 'string', default: ['😂', '❤️', '🔥'] }
 };
 
-const settingsPath = path.join(__dirname, '../settings.json');
-const tmpPath = path.join(__dirname, '../settings.json.tmp');
-
-let cache = {};
+let currentSettings = {};
+let initialized = false;
+let settingsWriteQueue = Promise.resolve();
 
 function getDefaultSettings() {
   const defaults = {};
@@ -57,65 +55,80 @@ function validate(key, value) {
   }
 }
 
-function writeToDisk(data) {
-  const jsonStr = JSON.stringify(data, null, 2);
-  fs.writeFileSync(tmpPath, jsonStr, 'utf8');
-  const fd = fs.openSync(tmpPath, 'r+');
-  try {
-    fs.fsyncSync(fd);
-  } finally {
-    fs.closeSync(fd);
-  }
-  fs.renameSync(tmpPath, settingsPath);
-}
+async function loadFromMongo() {
+  await settingsWriteQueue;
+  const collection = getMongoClient().db('its-phestone-auth').collection('settings');
+  const defaults = getDefaultSettings();
+  const result = await collection.findOneAndUpdate(
+    { _id: 'global' },
+    { $setOnInsert: defaults },
+    { upsert: true, returnDocument: 'after' }
+  );
+  const document = result?.value || result;
 
-function loadFromDisk() {
-  cache = getDefaultSettings();
-  if (fs.existsSync(settingsPath)) {
+  if (!document) {
+    throw new Error('Failed to load settings document from MongoDB');
+  }
+
+  const loadedSettings = getDefaultSettings();
+  for (const key of Object.keys(SCHEMA)) {
+    if (!(key in document)) continue;
     try {
-      const raw = fs.readFileSync(settingsPath, 'utf8');
-      const parsed = JSON.parse(raw);
-      for (const [k, v] of Object.entries(parsed)) {
-        if (k in SCHEMA) {
-          try {
-            validate(k, v);
-            cache[k] = v;
-          } catch (valErr) {
-            logger.warn('settings', `Corrupt or invalid setting for '${k}' on disk, using default`, { error: valErr.message });
-          }
-        }
-      }
+      validate(key, document[key]);
+      loadedSettings[key] = Array.isArray(document[key]) ? [...document[key]] : document[key];
     } catch (err) {
-      logger.warn('settings', 'Failed to read settings.json or file corrupt, using defaults', { error: err.message });
+      logger.warn('settings', `Invalid persisted setting for '${key}', using default`, { error: err.message });
     }
   }
+
+  currentSettings = loadedSettings;
+  initialized = true;
 }
 
-// Initial load on module load
-loadFromDisk();
+async function initSettings() {
+  await useMongoDBAuthState(config);
+  await loadFromMongo();
+}
 
 function get(key) {
   if (!(key in SCHEMA)) {
     throw new SettingsError(`Unknown setting key: '${key}'`);
   }
-  return cache[key];
+  return currentSettings[key];
 }
 
 function set(key, value) {
   validate(key, value);
-  cache[key] = value;
-  writeToDisk(cache);
+  if (!initialized) {
+    throw new Error('Settings are not initialized. Call initSettings() first.');
+  }
+
+  currentSettings[key] = Array.isArray(value) ? [...value] : value;
+  const valueToPersist = Array.isArray(value) ? [...value] : value;
+  settingsWriteQueue = settingsWriteQueue
+    .then(() => getMongoClient().db('its-phestone-auth').collection('settings').updateOne(
+      { _id: 'global' },
+      { $set: { [key]: valueToPersist } },
+      { upsert: true }
+    ))
+    .catch((err) => {
+      logger.error('settings', `Failed to persist setting '${key}'`, { error: err.message });
+    });
 }
 
 function getAll() {
-  return Object.freeze(JSON.parse(JSON.stringify(cache)));
+  return Object.freeze(JSON.parse(JSON.stringify(currentSettings)));
 }
 
-function reload() {
-  loadFromDisk();
+async function reload() {
+  if (!initialized) {
+    return initSettings();
+  }
+  await loadFromMongo();
 }
 
 module.exports = {
+  initSettings,
   get,
   set,
   getAll,

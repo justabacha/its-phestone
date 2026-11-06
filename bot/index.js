@@ -11,6 +11,7 @@ const { validateConfig } = require('./config');
 const path = require('path');
 const connection = require('./core/connection');
 const registry = require('./core/registry');
+const { initSettings } = require('./core/settings');
 const logger = require('./lib/logger');
 const { sink } = require('./core/errors');
 
@@ -58,6 +59,7 @@ async function start() {
   try {
     const commandsDir = path.join(__dirname, 'commands');
     registry.loadCommands(commandsDir);
+    await initSettings();
     await connection.connectToWhatsApp();
   } catch (err) {
     console.error('Fatal error in connectToWhatsApp():', err);
