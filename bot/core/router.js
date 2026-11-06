@@ -5,11 +5,6 @@ const registry = require('./registry');
 // Deduplication cache — prevents double-processing sync copies
 const processedMessages = new Set();
 
-// Clear cache hourly to prevent memory leaks
-setInterval(() => {
-  processedMessages.clear();
-}, 60 * 60 * 1000);
-
 async function handleMessages(sock, messages) {
   for (const m of messages) {
     // Skip empty messages
@@ -30,6 +25,9 @@ async function handleMessages(sock, messages) {
     // Deduplicate by message ID (handles multi-device sync duplicates)
     const msgId = m.key.id;
     if (processedMessages.has(msgId)) continue;
+    if (processedMessages.size > 5000) {
+      processedMessages.clear();
+    }
     processedMessages.add(msgId);
 
     // Owner check

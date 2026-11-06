@@ -3,6 +3,7 @@ const { initAuthCreds, BufferJSON } = require('@whiskeysockets/baileys');
 const logger = require('../lib/logger');
 
 let mongoClient = null;
+let mongoClientPromise = null;
 
 async function useMongoDBAuthState(config) {
   const uri = (config && config.mongodbUri) || process.env.MONGODB_URI;
@@ -11,39 +12,42 @@ async function useMongoDBAuthState(config) {
   }
 
   if (!mongoClient) {
-    mongoClient = new MongoClient(uri);
-    await mongoClient.connect();
-    logger.info('auth-state', 'Connected to MongoDB for session auth state');
+    if (!mongoClientPromise) {
+      mongoClientPromise = (async () => {
+        const client = new MongoClient(uri);
+        await client.connect();
+        mongoClient = client;
+        logger.info('auth-state', 'Connected to MongoDB for session auth state');
+        return client;
+      })();
+    }
+
+    try {
+      await mongoClientPromise;
+    } finally {
+      mongoClientPromise = null;
+    }
   }
 
   const db = mongoClient.db('its-phestone-auth');
   const collection = db.collection('baileys_auth');
 
   async function readData(id) {
-    try {
-      const doc = await collection.findOne({ _id: id });
-      if (!doc || !doc.data) return null;
-      return JSON.parse(doc.data, BufferJSON.reviver);
-    } catch (err) {
-      logger.error('auth-state', `Error reading auth data for key '${id}'`, { error: err.message });
-      return null;
-    }
+    const doc = await collection.findOne({ _id: id });
+    if (!doc || !doc.data) return null;
+    return JSON.parse(doc.data, BufferJSON.reviver);
   }
 
   async function writeData(id, value) {
-    try {
-      if (value === null || value === undefined) {
-        await collection.deleteOne({ _id: id });
-      } else {
-        const jsonStr = JSON.stringify(value, BufferJSON.replacer);
-        await collection.updateOne(
-          { _id: id },
-          { $set: { data: jsonStr, updatedAt: new Date() } },
-          { upsert: true }
-        );
-      }
-    } catch (err) {
-      logger.error('auth-state', `Error writing auth data for key '${id}'`, { error: err.message });
+    if (value === null || value === undefined) {
+      await collection.deleteOne({ _id: id });
+    } else {
+      const jsonStr = JSON.stringify(value, BufferJSON.replacer);
+      await collection.updateOne(
+        { _id: id },
+        { $set: { data: jsonStr, updatedAt: new Date() } },
+        { upsert: true }
+      );
     }
   }
 
@@ -85,6 +89,14 @@ async function useMongoDBAuthState(config) {
   return { state, saveCreds };
 }
 
+function getMongoClient() {
+  if (!mongoClient) {
+    throw new Error('MongoDB auth state is not initialized');
+  }
+  return mongoClient;
+}
+
 module.exports = {
-  useMongoDBAuthState
+  useMongoDBAuthState,
+  getMongoClient
 };

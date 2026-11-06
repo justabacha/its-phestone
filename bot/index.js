@@ -21,27 +21,27 @@ async function shutdown(signal) {
   shuttingDown = true;
 
   logger.info('app', 'Shutting down gracefully...', { signal });
-
-  const client = connection.getActiveClient();
-  if (client) {
-    try {
-      await client.end();
-    } catch (err) {
-      logger.error('app', 'Failed to close WhatsApp socket', { error: err.message });
-    }
+  setTimeout(() => process.exit(0), 2000);
+  if (healthServer.listening) {
+    healthServer.close();
   }
 
-  process.exit(0);
+  try {
+    await connection.shutdownConnection();
+  } catch (err) {
+    logger.error('app', 'Failed to close WhatsApp connection cleanly', { error: err.message });
+  }
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 const port = process.env.PORT || 3000;
-http.createServer((req, res) => {
+const healthServer = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('its-phestone is alive\n');
-}).listen(port, '0.0.0.0', () => {
+});
+healthServer.listen(port, '0.0.0.0', () => {
   console.log(`[Health Check] Dummy HTTP server listening on port ${port}`);
 });
 
