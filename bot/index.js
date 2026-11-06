@@ -1,10 +1,33 @@
 const http = require('http');
 const { validateConfig } = require('./config');
 const path = require('path');
-const { connectToWhatsApp } = require('./core/connection');
+const connection = require('./core/connection');
 const registry = require('./core/registry');
 const logger = require('./lib/logger');
 const { sink } = require('./core/errors');
+
+let shuttingDown = false;
+
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  logger.info('app', 'Shutting down gracefully...', { signal });
+
+  const client = connection.getActiveClient();
+  if (client) {
+    try {
+      await client.end();
+    } catch (err) {
+      logger.error('app', 'Failed to close WhatsApp socket', { error: err.message });
+    }
+  }
+
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 const port = process.env.PORT || 3000;
 http.createServer((req, res) => {
@@ -27,7 +50,7 @@ async function start() {
   try {
     const commandsDir = path.join(__dirname, 'commands');
     registry.loadCommands(commandsDir);
-    await connectToWhatsApp();
+    await connection.connectToWhatsApp();
   } catch (err) {
     console.error('Fatal error in connectToWhatsApp():', err);
     if (err && err.stack) {

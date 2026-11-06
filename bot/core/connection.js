@@ -11,8 +11,12 @@ const messageStore = require('./cache/messages');
 const { registerAutoview } = require('./events/autoview');
 
 let reconnectAttempt = 0;
+let activeClient = null;
 
 async function connectToWhatsApp() {
+  logger.info('connection', 'Waiting 5s for old container to die...');
+  await new Promise(resolve => setTimeout(resolve, 5000));
+
   const { state, saveCreds } = await useMongoDBAuthState(config);
   const { version, isLatest } = await fetchLatestBaileysVersion();
 
@@ -32,6 +36,17 @@ async function connectToWhatsApp() {
         return msg.message;
       }
       return undefined;
+    }
+  });
+
+  activeClient = client;
+
+  let badMacWarned = false;
+  client.ws.on('CB:error', (node) => {
+    const error = node?.content?.[0]?.error;
+    if (error && String(error).includes('Bad MAC') && !badMacWarned) {
+      badMacWarned = true;
+      logger.warn('connection', 'Ignored Bad MAC error from corrupted message');
     }
   });
 
@@ -126,6 +141,11 @@ async function connectToWhatsApp() {
   return client;
 }
 
+function getActiveClient() {
+  return activeClient;
+}
+
 module.exports = {
-  connectToWhatsApp
+  connectToWhatsApp,
+  getActiveClient
 };
