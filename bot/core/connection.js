@@ -106,6 +106,8 @@ async function connectToWhatsApp() {
         logger.fatal('connection', 'Session logged out or invalid (statusCode 401). Delete MongoDB session and re-pair.');
         process.exit(1);
       } else {
+        // Add a fixed 5s pause to prevent 440 loops
+        await new Promise(resolve => setTimeout(resolve, 5000));
         reconnectAttempt++;
         const baseDelay = 5000 * Math.pow(2, reconnectAttempt - 1);
         const jitter = Math.floor(Math.random() * 5000);
