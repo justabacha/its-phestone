@@ -7,6 +7,7 @@ const config = require('../config');
 const logger = require('../lib/logger');
 const { useMongoDBAuthState } = require('./auth-state');
 const { handleMessages } = require('./router');
+const messageStore = require('./cache/messages');
 
 let reconnectAttempt = 0;
 
@@ -25,12 +26,21 @@ async function connectToWhatsApp() {
     syncFullHistory: false,
     shouldSyncHistoryMessage: () => false,
     getMessage: async (key) => {
-      // Hooked to messageStore in future slice (5C)
+      const msg = messageStore.get(key);
+      if (msg) {
+        return msg.message;
+      }
       return undefined;
     }
   });
 
   client.ev.on('messages.upsert', async (m) => {
+    for (const message of m.messages) {
+      if (message.key && message.key.remoteJid) {
+        messageStore.put(message.key.remoteJid, message.key, message);
+      }
+    }
+
     if (m.type === 'notify') {
       await handleMessages(client, m.messages);
     }
