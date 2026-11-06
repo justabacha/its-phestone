@@ -8,6 +8,7 @@ const logger = require('../lib/logger');
 const { useMongoDBAuthState } = require('./auth-state');
 const { handleMessages } = require('./router');
 const messageStore = require('./cache/messages');
+const { registerAutoview } = require('./events/autoview');
 
 let reconnectAttempt = 0;
 
@@ -47,6 +48,7 @@ async function connectToWhatsApp() {
   });
 
   client.ev.on('creds.update', saveCreds);
+  registerAutoview(client);
 
   let pairingRequested = false;
 
