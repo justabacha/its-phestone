@@ -1,9 +1,18 @@
+const http = require('http');
 const { validateConfig } = require('./config');
 const path = require('path');
 const { connectToWhatsApp } = require('./core/connection');
 const registry = require('./core/registry');
 const logger = require('./lib/logger');
 const { sink } = require('./core/errors');
+
+const port = process.env.PORT || 3000;
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('its-phestone is alive\n');
+}).listen(port, () => {
+  console.log(`[Health Check] Dummy HTTP server listening on port ${port}`);
+});
 
 async function start() {
   try {
