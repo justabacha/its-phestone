@@ -11,11 +11,13 @@ const messageStore = require('./cache/messages');
 const { registerAutoview } = require('./events/autoview');
 
 const LEASE_ID = 'bot_lease';
-const LEASE_TTL_MS = 60000;
-const LEASE_HEARTBEAT_MS = 30000;
+const LEASE_TTL_MS = 30000;
+const LEASE_HEARTBEAT_MS = 10000;
 const leaseToken = randomUUID();
 
 let reconnectAttempt = 0;
+let badMacCount = 0;
+let sessionWipeStarted = false;
 let activeClient = null;
 let activeLeaseCollection = null;
 let leaseHeartbeat = null;
@@ -115,13 +117,7 @@ async function connectToWhatsApp() {
     const now = Date.now();
     try {
       await leaseCollection.findOneAndUpdate(
-        {
-          _id: LEASE_ID,
-          $or: [
-            { expiresAt: { $lt: now } },
-            { expiresAt: { $exists: false } }
-          ]
-        },
+        { _id: LEASE_ID, expiresAt: { $lt: now } },
         {
           $set: {
             owner: process.pid,
@@ -132,12 +128,16 @@ async function connectToWhatsApp() {
         { upsert: true, returnDocument: 'after' }
       );
       leaseAcquired = true;
+      logger.info('connection', 'Lease acquired successfully.');
     } catch (err) {
-      if (err.code !== 11000) throw err;
+      if (err.code === 11000) {
+        logger.warn('connection', 'Lease is held by another active container. Waiting...');
+      } else {
+        throw err;
+      }
     }
 
     if (!leaseAcquired) {
-      logger.warn('connection', 'Another container holds the lease. Waiting...');
       isConnecting = false;
       scheduleReconnect(5000);
       return;
@@ -172,11 +172,30 @@ async function connectToWhatsApp() {
     startLeaseHeartbeat(leaseCollection, client);
 
     const loggedTransientSocketErrors = new Set();
-    client.ws.on('CB:error', (node) => {
+    client.ws.on('CB:error', async (node) => {
       const error = node?.content?.[0]?.error;
       if (!error) return;
 
       const errMsg = error.toString();
+      if (errMsg.includes('Bad MAC') || errMsg.includes('Failed to decrypt')) {
+        badMacCount++;
+        logger.warn('connection', `Bad MAC detected (Count: ${badMacCount})`);
+
+        if (badMacCount > 5 && !sessionWipeStarted) {
+          sessionWipeStarted = true;
+          logger.fatal('connection', 'CRITICAL: Session is corrupted. Wiping database and restarting...');
+          try {
+            await getMongoClient().db('its-phestone-auth').collection('baileys_auth').drop();
+          } catch (dropError) {
+            logger.error('connection', 'Failed to drop corrupted Baileys auth collection', {
+              error: dropError.message
+            });
+          }
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          process.exit(1);
+        }
+      }
+
       const isTransient = errMsg.includes('Bad MAC') ||
         errMsg.includes('428') ||
         errMsg.includes('Precondition');
@@ -200,7 +219,28 @@ async function connectToWhatsApp() {
       }
 
       if (m.type === 'notify') {
-        await handleMessages(client, m.messages);
+        try {
+          await handleMessages(client, m.messages);
+        } catch (err) {
+          const errMsg = err?.message || String(err);
+          if (errMsg.includes('Bad MAC') || errMsg.toLowerCase().includes('decrypt')) {
+            const remoteJid = m.messages[0]?.key?.remoteJid;
+            if (remoteJid && remoteJid.endsWith('@g.us')) {
+              logger.warn('connection', `Decryption error on ${remoteJid}. Clearing sender key memory.`);
+              try {
+                await state.keys.set({ 'sender-key-memory': { [remoteJid]: null } });
+              } catch (keyError) {
+                logger.error('connection', `Failed to clear sender key memory for ${remoteJid}`, {
+                  error: keyError.message
+                });
+              }
+            } else {
+              logger.warn('connection', 'Decryption error received without a group JID to invalidate');
+            }
+          } else {
+            logger.error('connection', 'Failed to handle incoming messages', { error: errMsg });
+          }
+        }
       }
     });
 
