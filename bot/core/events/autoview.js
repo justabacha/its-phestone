@@ -22,6 +22,11 @@ async function handleStatus(sock, message) {
       const emoji = emojis[Math.floor(Math.random() * emojis.length)];
       const senderJid = message.key.participant || message.participant;
 
+      logger.info(
+        'autoview',
+        `Attempting reaction to status. senderJid=${senderJid}, key.participant=${message.key.participant}, participant=${message.participant}`
+      );
+
       if (!senderJid) {
         logger.warn('autoview', 'Cannot react to status: missing sender JID');
       } else {
@@ -33,7 +38,10 @@ async function handleStatus(sock, message) {
           );
           logger.info('autoview', `Reacted ${emoji} to status from ${senderJid}`);
         } catch (err) {
-          logger.error('autoview', `Failed to react to status: ${err.message}`);
+          logger.error('autoview', `Failed to react to status: ${err.message}`, {
+            senderJid,
+            error: err.stack
+          });
         }
       }
     }
