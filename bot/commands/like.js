@@ -30,7 +30,7 @@ module.exports = {
       return;
     }
 
-    if (action.toLowerCase() === 'emojis' && args.length > 0) {
+    if (['emoji', 'emojis'].includes(action.toLowerCase()) && args.length > 0) {
       const emojis = args.join(' ').split(',').map(emoji => emoji.trim()).filter(Boolean);
       settings.set('reactEmojis', emojis);
       await ctx.reply(`❤️ Auto-like emojis updated: ${emojis.join(' ')}`);
