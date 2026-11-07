@@ -7,7 +7,7 @@ module.exports = {
     const [action, ...extraArgs] = ctx.args;
 
     if (!action) {
-      await ctx.reply(`👁️ Auto-view is currently ${settings.get('autoView') ? 'ON' : 'OFF'}.`);
+      await ctx.reply(`⚆⚆Auto-view is currently ${settings.get('autoView') ? 'ON' : 'OFF'}.`);
       return;
     }
 
@@ -18,14 +18,14 @@ module.exports = {
 
     if (action.toLowerCase() === 'on') {
       settings.set('autoView', true);
-      await ctx.reply('👁️ Auto-view is now ON.');
+      await ctx.reply('⚆⚆Auto-view is now ON.');
       return;
     }
 
     if (action.toLowerCase() === 'off') {
       settings.set('autoView', false);
       settings.set('autoReact', false);
-      await ctx.reply('👁️ Auto-view is now OFF. (Auto-react also disabled).');
+      await ctx.reply('⚆⚆Auto-view is now OFF. (Auto-react also disabled).');
       return;
     }
 

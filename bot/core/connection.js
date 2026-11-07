@@ -9,6 +9,7 @@ const { useMongoDBAuthState, getMongoClient } = require('./auth-state');
 const { handleMessages } = require('./router');
 const messageStore = require('./cache/messages');
 const { registerAutoview } = require('./events/autoview');
+const { registerAntidelete } = require('./events/antidelete');
 
 const LEASE_ID = 'bot_lease';
 const LEASE_TTL_MS = 30000;
@@ -246,6 +247,7 @@ async function connectToWhatsApp() {
 
     client.ev.on('creds.update', saveCreds);
     registerAutoview(client);
+    registerAntidelete(client);
 
     let pairingRequested = false;
     let connectionClosed = false;

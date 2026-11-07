@@ -10,7 +10,7 @@ class SettingsError extends Error {
 }
 
 const SCHEMA = {
-  antidelete:  { type: 'enum',    values: ['all', 'group', 'private', 'off'], default: 'off' },
+  antidelete:  { type: 'enum',    values: ['all', 'private', 'off'], default: 'off' },
   autopilot:   { type: 'array',   of: 'string', default: [] },
   autoView:    { type: 'boolean', default: false },
   autoReact:   { type: 'boolean', default: false },
