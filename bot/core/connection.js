@@ -146,10 +146,18 @@ async function connectToWhatsApp() {
     activeLeaseCollection = leaseCollection;
     if (isShuttingDown) return;
 
-    const { version, isLatest } = await fetchLatestBaileysVersion();
+    const { version: fetchedVersion, isLatest } = await fetchLatestBaileysVersion();
     if (isShuttingDown) return;
 
-    logger.info('connection', `Initializing Baileys v${version.join('.')}, isLatest=${isLatest}`);
+    const version = isLatest ? fetchedVersion : [2, 3000, 1043857760];
+    if (!isLatest) {
+      logger.warn('connection', 'Fetched Baileys version is not latest; using fallback version', {
+        fetchedVersion: fetchedVersion.join('.'),
+        fallbackVersion: version.join('.')
+      });
+    }
+
+    logger.info('connection', `Using Baileys version ${version.join('.')}, isLatest=${isLatest}`);
 
     client = makeWASocket({
       auth: state,
