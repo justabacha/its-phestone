@@ -155,7 +155,7 @@ async function connectToWhatsApp() {
       auth: state,
       version,
       logger: pino({ level: 'silent' }),
-      browser: Browsers.macOS('Chrome'),
+      browser: Browsers.macOS('Desktop'),
       mobile: false,
       syncFullHistory: false,
       shouldSyncHistoryMessage: () => false,
