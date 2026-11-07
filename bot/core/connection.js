@@ -1,6 +1,6 @@
 const { randomUUID } = require('crypto');
-const makeWASocket = require('@whiskeysockets/baileys').default;
-const { fetchLatestBaileysVersion, Browsers, DisconnectReason } = require('@whiskeysockets/baileys');
+const makeWASocket = require('queen-senaya').default;
+const { fetchLatestBaileysVersion, Browsers, DisconnectReason } = require('queen-senaya');
 const { Boom } = require('@hapi/boom');
 const pino = require('pino');
 const config = require('../config');

@@ -15,16 +15,22 @@ async function handleStatus(sock, message) {
     }
 
     if (settings.get('autoReact')) {
-      await delay(2000, 5000);
+      await delay(10000, 30000);
+
+      if (Math.random() < 0.5) {
+        logger.info('autoview', 'Skipping reaction for natural UX');
+        return;
+      }
+
       const emojis = settings.get('reactEmojis') || [];
       if (emojis.length === 0) return;
 
       const emoji = emojis[Math.floor(Math.random() * emojis.length)];
-      const senderJid = message.key.participant || message.participant;
+      const senderJid = message.key.participantAlt || message.key.participant || message.participant;
 
       logger.info(
         'autoview',
-        `Attempting reaction to status. senderJid=${senderJid}, key.participant=${message.key.participant}, participant=${message.participant}`
+        `Attempting reaction. senderJid=${senderJid}, participantAlt=${message.key.participantAlt}, participant=${message.key.participant}`
       );
 
       if (!senderJid) {

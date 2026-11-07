@@ -1,4 +1,4 @@
-const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
+const { downloadContentFromMessage } = require('queen-senaya');
 
 async function toBuffer(stream) {
   const chunks = [];
