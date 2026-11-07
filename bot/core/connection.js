@@ -138,6 +138,7 @@ async function connectToWhatsApp() {
 
     if (!leaseAcquired) {
       logger.warn('connection', 'Another container holds the lease. Waiting...');
+      isConnecting = false;
       scheduleReconnect(5000);
       return;
     }
