@@ -1,5 +1,6 @@
 const logger = require('../../lib/logger');
 const settings = require('../settings');
+const { jidNormalizedUser } = require('@whiskeysockets/baileys');
 
 function delay(min, max) {
   const duration = Math.floor(Math.random() * (max - min + 1)) + min;
@@ -26,15 +27,28 @@ async function handleStatus(sock, message) {
       if (emojis.length === 0) return;
 
       const emoji = emojis[Math.floor(Math.random() * emojis.length)];
-      const senderJid = message.key.participantAlt || message.key.participant || message.participant;
+
+      let senderJid = message.key.participantAlt || message.key.participant || message.participant;
+
+      // Programmatically resolve LID to a phone number JID via Baileys signalRepository mapping store
+      if (senderJid && senderJid.endsWith('@lid') && sock.signalRepository?.lidMapping?.getPNForLID) {
+        try {
+          const resolvedPn = await sock.signalRepository.lidMapping.getPNForLID(senderJid);
+          if (resolvedPn) {
+            senderJid = jidNormalizedUser ? jidNormalizedUser(resolvedPn) : resolvedPn.split(':')[0] + '@s.whatsapp.net';
+          }
+        } catch (err) {
+          logger.warn('autoview', `Could not resolve LID ${senderJid} to PN JID: ${err.message}`);
+        }
+      }
 
       logger.info(
         'autoview',
-        `Attempting reaction to status. senderJid=${senderJid}, participantAlt=${message.key.participantAlt}, key.participant=${message.key.participant}, participant=${message.participant}`
+        `Attempting reaction to status. resolvedSenderJid=${senderJid}, participantAlt=${message.key.participantAlt}, key.participant=${message.key.participant}`
       );
 
-      if (!senderJid) {
-        logger.warn('autoview', 'Cannot react to status: missing sender JID');
+      if (!senderJid || senderJid.endsWith('@lid')) {
+        logger.warn('autoview', 'Cannot react to status: JID is still an unresolved LID or missing');
       } else {
         try {
           await sock.sendMessage(
