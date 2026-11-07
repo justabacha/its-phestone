@@ -1,5 +1,5 @@
 const { MongoClient } = require('mongodb');
-const { initAuthCreds, BufferJSON } = require('queen-senaya');
+const { initAuthCreds, BufferJSON } = require('@whiskeysockets/baileys');
 const logger = require('../lib/logger');
 
 let mongoClient = null;

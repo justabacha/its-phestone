@@ -26,11 +26,11 @@ async function handleStatus(sock, message) {
       if (emojis.length === 0) return;
 
       const emoji = emojis[Math.floor(Math.random() * emojis.length)];
-      const senderJid = message.key.participantAlt || message.key.participant || message.participant;
+      const senderJid = message.key.participant || message.participant;
 
       logger.info(
         'autoview',
-        `Attempting reaction. senderJid=${senderJid}, participantAlt=${message.key.participantAlt}, participant=${message.key.participant}`
+        `Attempting reaction to status. senderJid=${senderJid}, key.participant=${message.key.participant}, participant=${message.participant}`
       );
 
       if (!senderJid) {

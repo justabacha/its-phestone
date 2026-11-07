@@ -1,6 +1,6 @@
 const { randomUUID } = require('crypto');
-const makeWASocket = require('queen-senaya').default;
-const { fetchLatestBaileysVersion, Browsers, DisconnectReason } = require('queen-senaya');
+const makeWASocket = require('@whiskeysockets/baileys').default;
+const { fetchLatestBaileysVersion, Browsers, DisconnectReason } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const pino = require('pino');
 const config = require('../config');
@@ -146,24 +146,16 @@ async function connectToWhatsApp() {
     activeLeaseCollection = leaseCollection;
     if (isShuttingDown) return;
 
-    const { version: fetchedVersion, isLatest } = await fetchLatestBaileysVersion();
+    const { version, isLatest } = await fetchLatestBaileysVersion();
     if (isShuttingDown) return;
 
-    const version = isLatest ? fetchedVersion : [2, 3000, 1043857760];
-    if (!isLatest) {
-      logger.warn('connection', 'Fetched Baileys version is not latest; using fallback version', {
-        fetchedVersion: fetchedVersion.join('.'),
-        fallbackVersion: version.join('.')
-      });
-    }
-
-    logger.info('connection', `Using Baileys version ${version.join('.')}, isLatest=${isLatest}`);
+    logger.info('connection', `Initializing Baileys v${version.join('.')}, isLatest=${isLatest}`);
 
     client = makeWASocket({
       auth: state,
       version,
       logger: pino({ level: 'silent' }),
-      browser: Browsers.macOS('Desktop'),
+      browser: Browsers.macOS('Chrome'),
       mobile: false,
       syncFullHistory: false,
       shouldSyncHistoryMessage: () => false,
